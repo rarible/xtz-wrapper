@@ -2,7 +2,7 @@
 * Tez Public Wrapper contract
 **/
 archetype tez_wrapper(owner : address)
-with metadata "ipfs://bafybeidni7mdve4wkm2uucb3bggexdsb7gdfo77p4cbeeaqsanyrznsk4i"
+with metadata "ipfs://QmWf4HwC2dLgFLQ1NttS63zkyD7J8up29cdCC75A5Kh53v"
 
 //----------------------------------------------------------------------------
 // Constants
