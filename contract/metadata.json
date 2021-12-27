@@ -1,6 +1,6 @@
 {
     "name": "Tez Wrapper",
-    "description": "Simple implementation of a Tez (XTZ) Wrapper. It allows you to use XTZ tokens as FA2 tokens.",
+    "description": "Simple implementation of a Tez (XTZ) Wrapper. Allows you to use XTZ tokens as FA2 tokens.",
     "version": "1.0.0",
     "authors": [ "Florian PAUTOT <florian.pautot@gmail.com>" ],
     "license": {
