@@ -6,9 +6,9 @@
     "timeout": 0,
     "recursive": true,
     "file": [
-        "tests/tez-wrapper-tests.js"
+        "test/tez-wrapper-tests.js"
     ],
     "ui": "bdd",
-    "watch-files": ["tests/tez-wrapper-tests.js"],
+    "watch-files": ["test/tez-wrapper-tests.js"],
     "watch-ignore": []
 }

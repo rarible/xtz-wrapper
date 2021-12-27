@@ -1,0 +1,11 @@
+{
+    "symbol": "wTEZ",
+    "name": "Wrapped Tez",
+    "decimals": 6,
+    "is_transferable": true,
+    "is_boolean_amount": false,
+    "should_prefer_symbol": true,
+    "artifactUri":"ipfs://QmabuaaJh65vJVcpq3pD9oJ413eEQXm9pzgwZqyKKwmM6P",
+    "displayUri":"ipfs://QmabuaaJh65vJVcpq3pD9oJ413eEQXm9pzgwZqyKKwmM6P",
+    "thumbnailUri":"ipfs://QmabuaaJh65vJVcpq3pD9oJ413eEQXm9pzgwZqyKKwmM6P"
+}

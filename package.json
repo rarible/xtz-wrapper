@@ -4,7 +4,7 @@
   "description": "XTZ Wrapper contract. This contract allows you to wrap XTZ tokens as FA2 tokens",
   "main": "index.js",
   "directories": {
-    "test": "tests"
+    "test": "test"
   },
   "scripts": {
     "test": "mocha --timeout 0 --slow 0"

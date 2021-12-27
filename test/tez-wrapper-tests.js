@@ -16,7 +16,7 @@ require('mocha/package.json');
 
 setQuiet('true');
 
-const mockup_mode = true;
+const mockup_mode = false;
 
 // contracts
 let wrapper;
@@ -30,10 +30,9 @@ const daniel = getAccount(mockup_mode ? 'bootstrap1' : 'bootstrap1');
 //set endpointhead
 setEndpoint(mockup_mode ? 'mockup' : 'https://hangzhounet.smartpy.io');
 
-const amount = "100";
+const amount = "1";
 const unit = "tz"
 let tokenId = 0;
-const testAmount_1 = 1;
 const testAmount_2 = 11;
 const burnAmount = 2;
 
@@ -96,6 +95,107 @@ describe('Tez Wrapper Contract deployment', async () => {
                 },
                 as: alice.pkh,
             }
+        );
+    });
+});
+
+describe('Set metadata', async () => {
+    it('Set metadata with empty content should succeed', async () => {
+        const argM = `(Pair "" 0x)`;
+        const storage = await wrapper.getStorage();
+        await wrapper.set_metadata({
+            argMichelson: argM,
+            as: alice.pkh,
+        });
+        var metadata = await getValueFromBigMap(
+            parseInt(storage.metadata),
+            exprMichelineToJson(`""`),
+            exprMichelineToJson(`string'`)
+        );
+        assert(metadata.bytes == '');
+    });
+
+    it('Set metadata called by not owner should fail', async () => {
+        await expectToThrow(async () => {
+            const argM = `(Pair "key" 0x)`;
+            await wrapper.set_metadata({
+                argMichelson: argM,
+                as: bob.pkh,
+            });
+        }, errors.INVALID_CALLER);
+    });
+
+    it('Set metadata with valid content should succeed', async () => {
+        const bytes = Buffer.from('ipfs://QmYrS72oMAzuF4RQMXsnmd2hopnRBaAgYoTG63s1bjGA3m', 'utf8').toString('hex');
+        const argM = `(Pair "" 0x${bytes})`;
+        const storage = await wrapper.getStorage();
+
+        await wrapper.set_metadata({
+            argMichelson: argM,
+            as: alice.pkh,
+        });
+
+        var metadata = await getValueFromBigMap(
+            parseInt(storage.metadata),
+            exprMichelineToJson(`""`),
+            exprMichelineToJson(`string'`)
+        );
+        assert('0x' + metadata.bytes == bytes);
+    });
+});
+
+describe('Set token metadata', async () => {
+    it('Set token metadata with empty content should succeed', async () => {
+        const argM = `0x`;
+        const storage = await wrapper.getStorage();
+        await wrapper.set_token_metadata({
+            argMichelson: argM,
+            as: alice.pkh,
+        });
+        var metadata = await getValueFromBigMap(
+            parseInt(storage.token_metadata),
+            exprMichelineToJson(`0`),
+            exprMichelineToJson(`nat`)
+        );
+        assert(
+            metadata.prim == 'Pair' &&
+            metadata.args[0].int == 0 &&
+            metadata.args[1][0].args[0].string == '' &&
+            metadata.args[1][0].args[1].bytes == ''
+        );
+    });
+
+    it('Set token metadata called by not owner should fail', async () => {
+        await expectToThrow(async () => {
+            const argM = `0x`;
+            await wrapper.set_token_metadata({
+                argMichelson: argM,
+                as: bob.pkh,
+            });
+        }, errors.INVALID_CALLER);
+    });
+
+    it('Set token metadata with valid content should succeed', async () => {
+        const bytes = Buffer.from('ipfs://QmcPZNTyNkqBvUDywg3fAE8hTDPPF9QRXDqr63UB663E8s', 'utf8').toString('hex');
+
+        const argM = `0x${bytes}`;
+        const storage = await wrapper.getStorage();
+
+        await wrapper.set_token_metadata({
+            argMichelson: argM,
+            as: alice.pkh,
+        });
+
+        var metadata = await getValueFromBigMap(
+            parseInt(storage.token_metadata),
+            exprMichelineToJson(`0`),
+            exprMichelineToJson(`nat`)
+        );
+        assert(
+            metadata.prim == 'Pair' &&
+            metadata.args[0].int == 0 &&
+            metadata.args[1][0].args[0].string == '' &&
+            metadata.args[1][0].args[1].bytes == bytes
         );
     });
 });
@@ -879,108 +979,6 @@ describe('Transfers gasless ', async () => {
             exprMichelineToJson(`(pair nat address))'`)
         );
         assert(parseInt(bobPostTransferBalances.int) == parseInt(amount*1_000_000) * 2 + parseInt(amount) * 4);
-    });
-});
-
-describe('Set metadata', async () => {
-    it('Set metadata with empty content should succeed', async () => {
-        const argM = `(Pair "" 0x)`;
-        const storage = await wrapper.getStorage();
-        await wrapper.set_metadata({
-            argMichelson: argM,
-            as: alice.pkh,
-        });
-        var metadata = await getValueFromBigMap(
-            parseInt(storage.metadata),
-            exprMichelineToJson(`""`),
-            exprMichelineToJson(`string'`)
-        );
-        assert(metadata.bytes == '');
-    });
-
-    it('Set metadata called by not owner should fail', async () => {
-        await expectToThrow(async () => {
-            const argM = `(Pair "key" 0x)`;
-            await wrapper.set_metadata({
-                argMichelson: argM,
-                as: bob.pkh,
-            });
-        }, errors.INVALID_CALLER);
-    });
-
-    it('Set metadata with valid content should succeed', async () => {
-        const bytes =
-            '0x05070707070a00000016016a5569553c34c4bfe352ad21740dea4e2faad3da000a00000004f5f466ab070700000a000000209aabe91d035d02ffb550bb9ea6fe19970f6fb41b5e69459a60b1ae401192a2dc';
-        const argM = `(Pair "" ${bytes})`;
-        const storage = await wrapper.getStorage();
-
-        await wrapper.set_metadata({
-            argMichelson: argM,
-            as: alice.pkh,
-        });
-
-        var metadata = await getValueFromBigMap(
-            parseInt(storage.metadata),
-            exprMichelineToJson(`""`),
-            exprMichelineToJson(`string'`)
-        );
-        assert('0x' + metadata.bytes == bytes);
-    });
-});
-
-describe('Set token metadata', async () => {
-    it('Set token metadata with empty content should succeed', async () => {
-        const argM = `0x`;
-        const storage = await wrapper.getStorage();
-        await wrapper.set_token_metadata({
-            argMichelson: argM,
-            as: alice.pkh,
-        });
-        var metadata = await getValueFromBigMap(
-            parseInt(storage.token_metadata),
-            exprMichelineToJson(`0`),
-            exprMichelineToJson(`nat`)
-        );
-        assert(
-            metadata.prim == 'Pair' &&
-            metadata.args[0].int == 0 &&
-            metadata.args[1][0].args[0].string == '' &&
-            metadata.args[1][0].args[1].bytes == ''
-        );
-    });
-
-    it('Set token metadata called by not owner should fail', async () => {
-        await expectToThrow(async () => {
-            const argM = `0x`;
-            await wrapper.set_token_metadata({
-                argMichelson: argM,
-                as: bob.pkh,
-            });
-        }, errors.INVALID_CALLER);
-    });
-
-    it('Set token metadata with valid content should succeed', async () => {
-        const bytes =
-            '05070707070a00000016016a5569553c34c4bfe352ad21740dea4e2faad3da000a00000004f5f466ab070700000a000000209aabe91d035d02ffb550bb9ea6fe19970f6fb41b5e69459a60b1ae401192a2dc';
-        const argM = `0x${bytes}`;
-        const storage = await wrapper.getStorage();
-
-        await wrapper.set_token_metadata({
-            argMichelson: argM,
-            as: alice.pkh,
-        });
-
-        var metadata = await getValueFromBigMap(
-            parseInt(storage.token_metadata),
-            exprMichelineToJson(`0`),
-            exprMichelineToJson(`nat`)
-        );
-        assert(
-            metadata.prim == 'Pair' &&
-            metadata.args[0].int == 0 &&
-            metadata.args[1][0].args[0].string == '' &&
-            metadata.args[1][0].args[1].bytes == bytes
-        );
     });
 });
 
