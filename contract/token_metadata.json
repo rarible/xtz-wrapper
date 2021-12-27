@@ -1,0 +1,8 @@
+{
+    "symbol": "wTEZ",
+    "name": "Wrapped Tez",
+    "decimals": 6,
+    "is_transferable": true,
+    "is_boolean_amount": false,
+    "should_prefer_symbol": true
+}

@@ -1,8 +1,8 @@
 /**
 * Tez Public Wrapper contract
 **/
-archetype multiple_nft_public(owner : address)
-with metadata ""
+archetype tez_wrapper(owner : address)
+with metadata "ipfs://bafybeidni7mdve4wkm2uucb3bggexdsb7gdfo77p4cbeeaqsanyrznsk4i"
 
 //----------------------------------------------------------------------------
 // Constants
@@ -81,6 +81,19 @@ entry set_metadata(ikey: string, idata : bytes) {
   require { r3 : is_not_paused() }
   effect {
     metadata := put(metadata, ikey, idata)
+  }
+}
+
+//----------------------------------------------------------------------------
+// Set token metadata
+//----------------------------------------------------------------------------
+entry set_token_metadata (ltoken_metadata: bytes) {
+  called by owner
+  effect {
+    token_metadata.addupdate(0, {
+            token_id = 0;
+            token_info = [("", ltoken_metadata)]
+          });
   }
 }
 
@@ -388,25 +401,26 @@ entry %transfer (txs : list<address * list<transfer_destination>>) {
 }
 
 //----------------------------------------------------------------------------
-// Mint & burn
+// Wrap & unwrap
 //----------------------------------------------------------------------------
 
-entry mint (mowner: address) {
+entry wrap (mowner: address) {
   require { r10: is_not_paused() }
   effect {
     ledger.addupdate((0, mowner), { lamount += mutez_to_nat(transferred) })
   }
 }
 
-entry burn(iamount : nat) {
+entry unwrap(iamount : nat) {
   require { r2 : is_not_paused() }
   effect {
     var vamount = ledger[(0, caller)].lamount;
     if (vamount > iamount)
-    then ledger.update((0, caller), { lamount -= iamount })
+      then ledger.update((0, caller), { lamount -= iamount })
     else if (vamount = iamount)
-    then ledger.remove((0, caller))
+      then ledger.remove((0, caller))
     else fail(FA2_INSUFFICIENT_BALANCE);
+    transfer (vamount * 1utz) to caller;
   }
 }
 

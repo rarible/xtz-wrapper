@@ -102,7 +102,7 @@ describe('Tez Wrapper Contract deployment', async () => {
 
 describe('Wrapped Minting', async () => {
     it('Mint Wrapped Tez as owner for ourself should succeed', async () => {
-        await wrapper.mint({
+        await wrapper.wrap({
             arg: {
                 iowner: alice.pkh,
             },
@@ -119,7 +119,7 @@ describe('Wrapped Minting', async () => {
     });
 
     it('Mint Wrapped Token as non owner for owner should succeed', async () => {
-        await wrapper.mint({
+        await wrapper.wrap({
             arg: {
                 iowner: alice.pkh,
             },
@@ -136,7 +136,7 @@ describe('Wrapped Minting', async () => {
     });
 
     it('Mint Wrapped Token as owner for non owner should succeed', async () => {
-        await wrapper.mint({
+        await wrapper.wrap({
             arg: {
                 iowner: bob.pkh,
             },
@@ -153,7 +153,7 @@ describe('Wrapped Minting', async () => {
     });
 
     it('Mint Wrapped Tez tokens as non owner for someone else should succeed', async () => {
-        await wrapper.mint({
+        await wrapper.wrap({
             arg: {
                 iowner: carl.pkh,
             },
@@ -170,7 +170,7 @@ describe('Wrapped Minting', async () => {
     });
 
     it('Mint Wrapped Tez as owner for someone else should succeed', async () => {
-        await wrapper.mint({
+        await wrapper.wrap({
             arg: {
                 iowner: bob.pkh,
             },
@@ -187,7 +187,7 @@ describe('Wrapped Minting', async () => {
     });
 
     it('Re-Mint Wrapped Tez should succeed', async () => {
-        await wrapper.mint({
+        await wrapper.wrap({
             arg: {
                 iowner: alice.pkh,
             },
@@ -205,7 +205,7 @@ describe('Wrapped Minting', async () => {
 
     it('Mint more tokens than owned tez should fail', async () => {
         await expectToThrowTezosError(async () => {
-            await wrapper.mint({
+            await wrapper.wrap({
                 arg: {
                     iowner: alice.pkh,
                 },
@@ -880,12 +880,11 @@ describe('Transfers gasless ', async () => {
         );
         assert(parseInt(bobPostTransferBalances.int) == parseInt(amount*1_000_000) * 2 + parseInt(amount) * 4);
     });
-
 });
 
 describe('Set metadata', async () => {
     it('Set metadata with empty content should succeed', async () => {
-        const argM = `(Pair "key" 0x)`;
+        const argM = `(Pair "" 0x)`;
         const storage = await wrapper.getStorage();
         await wrapper.set_metadata({
             argMichelson: argM,
@@ -926,6 +925,62 @@ describe('Set metadata', async () => {
             exprMichelineToJson(`string'`)
         );
         assert('0x' + metadata.bytes == bytes);
+    });
+});
+
+describe('Set token metadata', async () => {
+    it('Set token metadata with empty content should succeed', async () => {
+        const argM = `0x`;
+        const storage = await wrapper.getStorage();
+        await wrapper.set_token_metadata({
+            argMichelson: argM,
+            as: alice.pkh,
+        });
+        var metadata = await getValueFromBigMap(
+            parseInt(storage.token_metadata),
+            exprMichelineToJson(`0`),
+            exprMichelineToJson(`nat`)
+        );
+        assert(
+            metadata.prim == 'Pair' &&
+            metadata.args[0].int == 0 &&
+            metadata.args[1][0].args[0].string == '' &&
+            metadata.args[1][0].args[1].bytes == ''
+        );
+    });
+
+    it('Set token metadata called by not owner should fail', async () => {
+        await expectToThrow(async () => {
+            const argM = `0x`;
+            await wrapper.set_token_metadata({
+                argMichelson: argM,
+                as: bob.pkh,
+            });
+        }, errors.INVALID_CALLER);
+    });
+
+    it('Set token metadata with valid content should succeed', async () => {
+        const bytes =
+            '05070707070a00000016016a5569553c34c4bfe352ad21740dea4e2faad3da000a00000004f5f466ab070700000a000000209aabe91d035d02ffb550bb9ea6fe19970f6fb41b5e69459a60b1ae401192a2dc';
+        const argM = `0x${bytes}`;
+        const storage = await wrapper.getStorage();
+
+        await wrapper.set_token_metadata({
+            argMichelson: argM,
+            as: alice.pkh,
+        });
+
+        var metadata = await getValueFromBigMap(
+            parseInt(storage.token_metadata),
+            exprMichelineToJson(`0`),
+            exprMichelineToJson(`nat`)
+        );
+        assert(
+            metadata.prim == 'Pair' &&
+            metadata.args[0].int == 0 &&
+            metadata.args[1][0].args[0].string == '' &&
+            metadata.args[1][0].args[1].bytes == bytes
+        );
     });
 });
 
@@ -1121,7 +1176,7 @@ describe('Set expiry', async () => {
 describe('Burn', async () => {
     it('Burn without tokens should fail', async () => {
         await expectToThrow(async () => {
-            await wrapper.burn({
+            await wrapper.unwrap({
                 argMichelson: `1`,
                 as: daniel.pkh,
             });
@@ -1130,7 +1185,7 @@ describe('Burn', async () => {
 
     it('Burn tokens with not enough tokens should fail', async () => {
         await expectToThrow(async () => {
-            await wrapper.burn({
+            await wrapper.unwrap({
                 argMichelson: `66666666666666666666`,
                 as: alice.pkh,
             });
@@ -1146,7 +1201,7 @@ describe('Burn', async () => {
         );
         assert(parseInt(aliceTransferBalances.int) == parseInt(amount*1_000_000) * 3 - parseInt(amount) * 4);
 
-        await wrapper.burn({
+        await wrapper.unwrap({
             argMichelson: `${burnAmount}`,
             as: alice.pkh,
         });
@@ -1168,7 +1223,7 @@ describe('Burn', async () => {
         );
         assert(parseInt(aliceTransferBalances.int) == parseInt(amount*1_000_000) * 3 - parseInt(amount) * 4 - burnAmount);
 
-        await wrapper.burn({
+        await wrapper.unwrap({
             argMichelson: `${burnAmount}`,
             as: alice.pkh,
         });
@@ -1193,7 +1248,7 @@ describe('Pause', async () => {
 
     it('Minting is not possible when contract is paused should fail', async () => {
         await expectToThrow(async () => {
-            await wrapper.mint({
+            await wrapper.wrap({
                 arg: {
                     iowner: alice.pkh,
                     iamount: amount
@@ -1276,7 +1331,7 @@ describe('Pause', async () => {
 
     it('Burn is not possible when contract is paused should fail', async () => {
         await expectToThrow(async () => {
-            await wrapper.burn({
+            await wrapper.unwrap({
                 argMichelson: `666`,
                 as: alice.pkh,
             });

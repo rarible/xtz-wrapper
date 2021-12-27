@@ -3,13 +3,12 @@
     "extension": ["js"],
     "package": "package.json",
     "slow": 0,
-    "timeout": 99999999999999,
+    "timeout": 0,
     "recursive": true,
     "file": [
-        "tests/tez-wrapper-tests.js",
-        "tests/utils.js"
+        "tests/tez-wrapper-tests.js"
     ],
     "ui": "bdd",
-    "watch-files": ["lib/**/*.js", "tests/**/*.js"],
-    "watch-ignore": ["lib/vendor"]
+    "watch-files": ["tests/tez-wrapper-tests.js"],
+    "watch-ignore": []
 }
