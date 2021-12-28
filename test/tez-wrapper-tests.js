@@ -176,7 +176,7 @@ describe('Set token metadata', async () => {
     });
 
     it('Set token metadata with valid content should succeed', async () => {
-        const bytes = Buffer.from('ipfs://QmcPZNTyNkqBvUDywg3fAE8hTDPPF9QRXDqr63UB663E8s', 'utf8').toString('hex');
+        const bytes = Buffer.from('ipfs://QmUU4QyyjHgPwqcEJo2F6F8UCqcRdAEAvMeKJHmiiVpu6q', 'utf8').toString('hex');
 
         const argM = `0x${bytes}`;
         const storage = await wrapper.getStorage();

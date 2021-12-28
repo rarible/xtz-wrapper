@@ -24,6 +24,12 @@ constant SIGNER_NOT_FROM          : string = "SIGNER_NOT_FROM"
 constant TOKEN_NOT_FOUND          : string = "FA2_TOKEN_UNDEFINED"
 
 //----------------------------------------------------------------------------
+// Supply
+//----------------------------------------------------------------------------
+
+variable total_supply : nat = 0
+
+//----------------------------------------------------------------------------
 // Owner role transfer
 //----------------------------------------------------------------------------
 
@@ -44,33 +50,6 @@ entry claim_ownership() {
   }
 }
 
-//----------------------------------------------------------------------------
-// Contract execution pause/resume
-//----------------------------------------------------------------------------
-
-variable paused : bool = false
-
-entry pause() {
-  called by owner
-  effect {
-    dorequire(not paused, CONTRACT_PAUSED);
-    paused := true
-  }
-}
-
-entry unpause() {
-  called by owner
-  effect {
-    dorequire(paused, CONTRACT_NOT_PAUSED);
-    paused := false
-  }
-}
-
-function is_not_paused() : bool {
-  if (not paused)
-  then return true
-  else fail(CONTRACT_PAUSED)
-}
 
 //----------------------------------------------------------------------------
 // Metadata
@@ -78,7 +57,6 @@ function is_not_paused() : bool {
 
 entry set_metadata(ikey: string, idata : bytes) {
   called by owner
-  require { r3 : is_not_paused() }
   effect {
     metadata := put(metadata, ikey, idata)
   }
@@ -159,8 +137,6 @@ asset permits to big_map {
 //----------------------------------------------------------------------------
 
 entry update_operators (upl : list<or<operator_param, operator_param>>) {
-  require { r0 : is_not_paused() }
-  effect {
     for up in upl do
       match up with
       | left(param)  -> (* add *)
@@ -175,7 +151,6 @@ entry update_operators (upl : list<or<operator_param, operator_param>>) {
         operator.remove((param.opp_operator, param.opp_token_id, param.opp_owner))
       end;
     done;
-  }
 }
 
 function check_owner_and_operator(txs : list<address * list<transfer_destination>>) : bool {
@@ -232,50 +207,46 @@ function has_expired(iuser_permit : user_permit, iexpiry: nat) : bool {
 
 entry set_default_expiry(v : nat) {
   called by owner
-  require { r6: is_not_paused() }
   effect {
     default_expiry := v
   }
 }
 
 entry set_expiry(v : option<nat>, p : option<bytes>) {
-  require { r7: is_not_paused() }
-  effect {
-    match v with
-      | some v_expiry ->
-          dofailif(v_expiry >= default_expiry, EXPIRY_TOO_BIG)
-      | none -> ()
-    end;
-    if permits.contains(caller)
-    then begin
-      match p with
-      | some lpermit ->
-        if permits[caller].user_permits.contains(lpermit)
-        then begin
-          var need_update = true;
-          match v with
-            | some v_expiry ->
+  match v with
+    | some v_expiry ->
+        dofailif(v_expiry >= default_expiry, EXPIRY_TOO_BIG)
+    | none -> ()
+  end;
+  if permits.contains(caller)
+  then begin
+    match p with
+    | some lpermit ->
+      if permits[caller].user_permits.contains(lpermit)
+      then begin
+        var need_update = true;
+        match v with
+          | some v_expiry ->
+            begin
+              if v_expiry = 0 then
               begin
-                if v_expiry = 0 then
-                begin
-                  need_update := false;
-                  permits[caller].user_permits.remove(lpermit)
-                end
+                need_update := false;
+                permits[caller].user_permits.remove(lpermit)
               end
-            | none -> ()
-          end;
-          if need_update then
-          begin
-            var up : user_permit = permits[caller].user_permits[lpermit];
-            permits[caller].user_permits.update(lpermit, some({up with expiry = v}))
-          end
+            end
+          | none -> ()
+        end;
+        if need_update then
+        begin
+          var up : user_permit = permits[caller].user_permits[lpermit];
+          permits[caller].user_permits.update(lpermit, some({up with expiry = v}))
         end
-        else fail ((PERMIT_NOT_FOUND, (caller, lpermit)))
-      | none -> permits.update(caller, { user_expiry = v })
       end
+      else fail ((PERMIT_NOT_FOUND, (caller, lpermit)))
+    | none -> permits.update(caller, { user_expiry = v })
     end
-    else fail ((PERMIT_USER_NOT_FOUND, caller))
-  }
+  end
+  else fail ((PERMIT_USER_NOT_FOUND, caller))
 }
 
 //----------------------------------------------------------------------------
@@ -283,26 +254,23 @@ entry set_expiry(v : option<nat>, p : option<bytes>) {
 //----------------------------------------------------------------------------
 
 entry permit(pk : key, sig : signature, data : bytes) {
-  require { r5: is_not_paused() }
-  effect {
-    var user : address = key_address(pk);
-    var empty : map<bytes, user_permit> = [];
-    var pcounter_user_permits : (nat * map<bytes, user_permit>) =
-      if permits.contains(user) then
-        (permits[user].counter, permits[user].user_permits)
-      else
-        (0, empty);
-    var pcounter = pcounter_user_permits[0];
-    var puser_permits = pcounter_user_permits[1];
-    var tosign : bytes = pack(((selfaddress, chainid), (pcounter, data)));
-    dorequire(check_signature(pk, sig, tosign), (MISSIGNED, tosign));
-    var lexpiry = get_default_expiry(user);
-    permits.addupdate(user, { counter += 1; user_permits = put(puser_permits, data, { expiry = some(lexpiry); created_at = now})});
-    for (k, v) in permits[user].user_permits do
-      if has_expired(v, lexpiry)
-      then permits[user].user_permits.remove(k)
-    done
-  }
+  var user : address = key_address(pk);
+  var empty : map<bytes, user_permit> = [];
+  var pcounter_user_permits : (nat * map<bytes, user_permit>) =
+    if permits.contains(user) then
+      (permits[user].counter, permits[user].user_permits)
+    else
+      (0, empty);
+  var pcounter = pcounter_user_permits[0];
+  var puser_permits = pcounter_user_permits[1];
+  var tosign : bytes = pack(((selfaddress, chainid), (pcounter, data)));
+  dorequire(check_signature(pk, sig, tosign), (MISSIGNED, tosign));
+  var lexpiry = get_default_expiry(user);
+  permits.addupdate(user, { counter += 1; user_permits = put(puser_permits, data, { expiry = some(lexpiry); created_at = now})});
+  for (k, v) in permits[user].user_permits do
+    if has_expired(v, lexpiry)
+    then permits[user].user_permits.remove(k)
+  done
 }
 
 //----------------------------------------------------------------------------
@@ -359,45 +327,42 @@ function get_from_address(txs : list<address * list<transfer_destination>>) : op
 }
 
 entry %transfer (txs : list<address * list<transfer_destination>>) {
-  require { r8 : is_not_paused() }
-  effect {
-    if not check_owner_and_operator(txs) then begin
-      match get_from_address(txs) with
-      | some(%from) -> begin
-          var permit_key = blake2b(pack(txs));
-          if not permits.contains(%from)
-          then fail(NO_ENTRY_FOR_USER)
-          else if not permits[%from].user_permits.contains(permit_key)
-          then fail(FA2_NOT_OPERATOR)
-          else (
-            var iuser_permit = permits[%from].user_permits[permit_key];
-            var iexpiry = get_expiry(%from, permit_key);
-            if has_expired(iuser_permit, iexpiry)
-            then fail(PERMIT_EXPIRED)
-            else permits[%from].user_permits.remove(permit_key)
-          );
-          end
-      | none -> ()
-      end
-    end;
+  if not check_owner_and_operator(txs) then begin
+    match get_from_address(txs) with
+    | some(%from) -> begin
+        var permit_key = blake2b(pack(txs));
+        if not permits.contains(%from)
+        then fail(NO_ENTRY_FOR_USER)
+        else if not permits[%from].user_permits.contains(permit_key)
+        then fail(FA2_NOT_OPERATOR)
+        else (
+          var iuser_permit = permits[%from].user_permits[permit_key];
+          var iexpiry = get_expiry(%from, permit_key);
+          if has_expired(iuser_permit, iexpiry)
+          then fail(PERMIT_EXPIRED)
+          else permits[%from].user_permits.remove(permit_key)
+        );
+        end
+    | none -> ()
+    end
+  end;
 
-    for tx in txs do
-      var %from = tx[0];
-      var tds = tx[1];
-      for td in tds do begin
-        (* set token ownership *)
-        var tokenid = td.token_id_dest;
-        var amount = ledger[(tokenid, %from)].lamount;
-        if td.token_amount_dest > amount then
-          fail(FA2_INSUFFICIENT_BALANCE)
-        else if td.token_amount_dest = amount then
-          ledger.remove((tokenid, %from))
-        else
-          ledger.update((tokenid, %from), { lamount -= td.token_amount_dest });
-        ledger.addupdate((tokenid, td.to_dest), { lamount += td.token_amount_dest })
-      end done;
-    done
-  }
+  for tx in txs do
+    var %from = tx[0];
+    var tds = tx[1];
+    for td in tds do begin
+      (* set token ownership *)
+      var tokenid = td.token_id_dest;
+      var amount = ledger[(tokenid, %from)].lamount;
+      if td.token_amount_dest > amount then
+        fail(FA2_INSUFFICIENT_BALANCE)
+      else if td.token_amount_dest = amount then
+        ledger.remove((tokenid, %from))
+      else
+        ledger.update((tokenid, %from), { lamount -= td.token_amount_dest });
+      ledger.addupdate((tokenid, td.to_dest), { lamount += td.token_amount_dest })
+    end done;
+  done
 }
 
 //----------------------------------------------------------------------------
@@ -405,15 +370,11 @@ entry %transfer (txs : list<address * list<transfer_destination>>) {
 //----------------------------------------------------------------------------
 
 entry wrap (mowner: address) {
-  require { r10: is_not_paused() }
-  effect {
-    ledger.addupdate((0, mowner), { lamount += mutez_to_nat(transferred) })
-  }
+    ledger.addupdate((0, mowner), { lamount += mutez_to_nat(transferred) });
+    total_supply += mutez_to_nat(transferred)
 }
 
 entry unwrap(iamount : nat) {
-  require { r2 : is_not_paused() }
-  effect {
     var vamount = ledger[(0, caller)].lamount;
     if (vamount > iamount)
       then ledger.update((0, caller), { lamount -= iamount })
@@ -421,7 +382,7 @@ entry unwrap(iamount : nat) {
       then ledger.remove((0, caller))
     else fail(FA2_INSUFFICIENT_BALANCE);
     transfer (vamount * 1utz) to caller;
-  }
+    total_supply -= vamount
 }
 
 //----------------------------------------------------------------------------
