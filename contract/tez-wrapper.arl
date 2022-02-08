@@ -9,8 +9,6 @@ with metadata "ipfs://QmYrS72oMAzuF4RQMXsnmd2hopnRBaAgYoTG63s1bjGA3m"
 //----------------------------------------------------------------------------
 
 constant CALLER_NOT_OWNER         : string = "CALLER_NOT_OWNER"
-constant CONTRACT_PAUSED          : string = "CONTRACT_PAUSED"
-constant CONTRACT_NOT_PAUSED      : string = "CONTRACT_NOT_PAUSED"
 constant EXPIRY_TOO_BIG           : string = "EXPIRY_TOO_BIG"
 constant FA2_INSUFFICIENT_BALANCE : string = "FA2_INSUFFICIENT_BALANCE"
 constant FA2_INVALID_AMOUNT       : string = "FA2_INVALID_AMOUNT"
@@ -22,12 +20,6 @@ constant PERMIT_NOT_FOUND         : string = "PERMIT_NOT_FOUND"
 constant PERMIT_USER_NOT_FOUND    : string = "PERMIT_USER_NOT_FOUND"
 constant SIGNER_NOT_FROM          : string = "SIGNER_NOT_FROM"
 constant TOKEN_NOT_FOUND          : string = "FA2_TOKEN_UNDEFINED"
-
-//----------------------------------------------------------------------------
-// Supply
-//----------------------------------------------------------------------------
-
-variable total_supply : nat = 0
 
 //----------------------------------------------------------------------------
 // Owner role transfer
@@ -371,18 +363,20 @@ entry %transfer (txs : list<address * list<transfer_destination>>) {
 
 entry wrap (mowner: address) {
     ledger.addupdate((0, mowner), { lamount += mutez_to_nat(transferred) });
-    total_supply += mutez_to_nat(transferred)
 }
 
-entry unwrap(iamount : nat) {
+entry unwrap (iamount : nat, idestination: option<address>) {
     var vamount = ledger[(0, caller)].lamount;
     if (vamount > iamount)
       then ledger.update((0, caller), { lamount -= iamount })
     else if (vamount = iamount)
       then ledger.remove((0, caller))
     else fail(FA2_INSUFFICIENT_BALANCE);
-    transfer (vamount * 1utz) to caller;
-    total_supply -= vamount
+    if(issome(idestination)) then (
+        transfer (iamount * 1utz) to opt_get(idestination);
+    ) else (
+      transfer (iamount * 1utz) to caller;
+    )
 }
 
 //----------------------------------------------------------------------------

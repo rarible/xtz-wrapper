@@ -7,16 +7,18 @@ const {
     exprMichelineToJson,
     setMockupNow,
     isMockup,
-    setEndpoint
+    setEndpoint,
+    getBalance
 } = require('@completium/completium-cli');
 const { errors, mkTransferPermit, mkTransferGaslessArgs } = require('./utils');
 const assert = require('assert');
+const BigNumber = require('bignumber.js');
 
 require('mocha/package.json');
 
 setQuiet('true');
 
-const mockup_mode = false;
+const mockup_mode = true;
 
 // contracts
 let wrapper;
@@ -34,7 +36,7 @@ const amount = "1";
 const unit = "tz"
 let tokenId = 0;
 const testAmount_2 = 11;
-const burnAmount = 2;
+const UnwrapAmount = 2;
 
 let alicePermitNb = 0;
 let carlPermitNb = 0;
@@ -126,7 +128,7 @@ describe('Set metadata', async () => {
     });
 
     it('Set metadata with valid content should succeed', async () => {
-        const bytes = Buffer.from('ipfs://QmYrS72oMAzuF4RQMXsnmd2hopnRBaAgYoTG63s1bjGA3m', 'utf8').toString('hex');
+        const bytes = Buffer.from('ipfs://QmQUTp3SFURAZvZQkHc9hCHcPoLvyGxjQuZWBYCV8kgMmr', 'utf8').toString('hex');
         const argM = `(Pair "" 0x${bytes})`;
         const storage = await wrapper.getStorage();
 
@@ -140,7 +142,7 @@ describe('Set metadata', async () => {
             exprMichelineToJson(`""`),
             exprMichelineToJson(`string'`)
         );
-        assert('0x' + metadata.bytes == bytes);
+        assert(metadata.bytes == bytes);
     });
 });
 
@@ -176,7 +178,7 @@ describe('Set token metadata', async () => {
     });
 
     it('Set token metadata with valid content should succeed', async () => {
-        const bytes = Buffer.from('ipfs://QmUU4QyyjHgPwqcEJo2F6F8UCqcRdAEAvMeKJHmiiVpu6q', 'utf8').toString('hex');
+        const bytes = Buffer.from('ipfs://QmYUcTihXr8Hk1zQ42gh19aaJXXTkoWMfz5wzgVSLAFRuP', 'utf8').toString('hex');
 
         const argM = `0x${bytes}`;
         const storage = await wrapper.getStorage();
@@ -200,8 +202,9 @@ describe('Set token metadata', async () => {
     });
 });
 
-describe('Wrapped Minting', async () => {
-    it('Mint Wrapped Tez as owner for ourself should succeed', async () => {
+describe('Wrapped Wraping', async () => {
+    it('Wrap Wrapped Tez as owner for ourself should succeed', async () => {
+        const preBalance = await getBalance(alice.pkh);
         await wrapper.wrap({
             arg: {
                 iowner: alice.pkh,
@@ -215,10 +218,15 @@ describe('Wrapped Minting', async () => {
             exprMichelineToJson(`(Pair ${tokenId} "${alice.pkh}")`),
             exprMichelineToJson(`(pair nat address)'`)
         );
+        const postBalance = await getBalance(alice.pkh);
+
         assert(parseInt(balance.int) == parseInt(amount * 1_000_000));
+        assert(preBalance - postBalance > BigNumber(amount))
     });
 
-    it('Mint Wrapped Token as non owner for owner should succeed', async () => {
+    it('Wrap Wrapped Token as non owner for owner should succeed', async () => {
+        const preBalance = await getBalance(bob.pkh);
+
         await wrapper.wrap({
             arg: {
                 iowner: alice.pkh,
@@ -226,6 +234,9 @@ describe('Wrapped Minting', async () => {
             amount: amount + unit,
             as: bob.pkh,
         });
+
+        const postBalance = await getBalance(bob.pkh);
+
         const storage = await wrapper.getStorage();
         var balance = await getValueFromBigMap(
             parseInt(storage.ledger),
@@ -233,9 +244,13 @@ describe('Wrapped Minting', async () => {
             exprMichelineToJson(`(pair nat address)'`)
         );
         assert(parseInt(balance.int) == parseInt(amount * 1_000_000 * 2));
+        assert(preBalance - postBalance > BigNumber(amount))
+
     });
 
-    it('Mint Wrapped Token as owner for non owner should succeed', async () => {
+    it('Wrap Wrapped Token as owner for non owner should succeed', async () => {
+        const preBalance = await getBalance(alice.pkh);
+
         await wrapper.wrap({
             arg: {
                 iowner: bob.pkh,
@@ -243,6 +258,9 @@ describe('Wrapped Minting', async () => {
             amount: amount + unit,
             as: alice.pkh,
         });
+
+        const postBalance = await getBalance(alice.pkh);
+
         const storage = await wrapper.getStorage();
         var balance = await getValueFromBigMap(
             parseInt(storage.ledger),
@@ -250,9 +268,12 @@ describe('Wrapped Minting', async () => {
             exprMichelineToJson(`(pair nat address)'`)
         );
         assert(parseInt(balance.int) == parseInt(amount * 1_000_000));
+        assert(preBalance - postBalance > BigNumber(amount))
     });
 
-    it('Mint Wrapped Tez tokens as non owner for someone else should succeed', async () => {
+    it('Wrap Wrapped Tez tokens as non owner for someone else should succeed', async () => {
+        const preBalance = await getBalance(bob.pkh);
+
         await wrapper.wrap({
             arg: {
                 iowner: carl.pkh,
@@ -260,6 +281,9 @@ describe('Wrapped Minting', async () => {
             amount: amount + unit,
             as: bob.pkh,
         });
+
+        const postBalance = await getBalance(bob.pkh);
+
         const storage = await wrapper.getStorage();
         var balance = await getValueFromBigMap(
             parseInt(storage.ledger),
@@ -267,9 +291,12 @@ describe('Wrapped Minting', async () => {
             exprMichelineToJson(`(pair nat address)'`)
         );
         assert(parseInt(balance.int) == parseInt(amount * 1_000_000));
+        assert(preBalance - postBalance > BigNumber(amount))
     });
 
-    it('Mint Wrapped Tez as owner for someone else should succeed', async () => {
+    it('Wrap Wrapped Tez as owner for someone else should succeed', async () => {
+        const preBalance = await getBalance(carl.pkh);
+
         await wrapper.wrap({
             arg: {
                 iowner: bob.pkh,
@@ -277,6 +304,9 @@ describe('Wrapped Minting', async () => {
             amount: amount + unit,
             as: carl.pkh,
         });
+
+        const postBalance = await getBalance(carl.pkh);
+
         const storage = await wrapper.getStorage();
         var balance = await getValueFromBigMap(
             parseInt(storage.ledger),
@@ -284,9 +314,13 @@ describe('Wrapped Minting', async () => {
             exprMichelineToJson(`(pair nat address)'`)
         );
         assert(parseInt(balance.int) == parseInt(amount * 1_000_000 * 2));
+        assert(preBalance - postBalance > BigNumber(amount))
+
     });
 
-    it('Re-Mint Wrapped Tez should succeed', async () => {
+    it('Re-Wrap Wrapped Tez should succeed', async () => {
+        const preBalance = await getBalance(alice.pkh);
+
         await wrapper.wrap({
             arg: {
                 iowner: alice.pkh,
@@ -294,6 +328,9 @@ describe('Wrapped Minting', async () => {
             amount: amount + unit,
             as: alice.pkh,
         });
+
+        const postBalance = await getBalance(alice.pkh);
+
         const storage = await wrapper.getStorage();
         var balance = await getValueFromBigMap(
             parseInt(storage.ledger),
@@ -301,9 +338,10 @@ describe('Wrapped Minting', async () => {
             exprMichelineToJson(`(pair nat address)'`)
         );
         assert(parseInt(balance.int) == parseInt(amount * 1_000_000 * 3));
+        assert(preBalance - postBalance > BigNumber(amount))
     });
 
-    it('Mint more tokens than owned tez should fail', async () => {
+    it('Wrap more tokens than owned tez should fail', async () => {
         await expectToThrowTezosError(async () => {
             await wrapper.wrap({
                 arg: {
@@ -1171,26 +1209,26 @@ describe('Set expiry', async () => {
     });
 });
 
-describe('Burn', async () => {
-    it('Burn without tokens should fail', async () => {
+describe('Unwrap', async () => {
+    it('Unwrap without tokens should fail', async () => {
         await expectToThrow(async () => {
             await wrapper.unwrap({
-                argMichelson: `1`,
+                argMichelson: `(Pair 1 None)`,
                 as: daniel.pkh,
             });
         }, errors.ASSET_NOT_FOUND);
     });
 
-    it('Burn tokens with not enough tokens should fail', async () => {
+    it('Unwrap tokens with not enough tokens should fail', async () => {
         await expectToThrow(async () => {
             await wrapper.unwrap({
-                argMichelson: `66666666666666666666`,
+                argMichelson: `(Pair 66666666666666666666 None)`,
                 as: alice.pkh,
             });
         }, errors.FA2_INSUFFICIENT_BALANCE);
     });
 
-    it('Burn tokens with enough tokens should succeed', async () => {
+    it('Unwrap tokens with enough tokens should succeed', async () => {
         const storage = await wrapper.getStorage();
         var aliceTransferBalances = await getValueFromBigMap(
             parseInt(storage.ledger),
@@ -1199,30 +1237,65 @@ describe('Burn', async () => {
         );
         assert(parseInt(aliceTransferBalances.int) == parseInt(amount*1_000_000) * 3 - parseInt(amount) * 4);
 
+        const preBalance = await getBalance(alice.pkh);
+
         await wrapper.unwrap({
-            argMichelson: `${burnAmount}`,
+            argMichelson: `(Pair ${UnwrapAmount} None)`,
             as: alice.pkh,
         });
+
+        const postBalance = await getBalance(alice.pkh);
 
         var alicePostTransferBalances = await getValueFromBigMap(
             parseInt(storage.ledger),
             exprMichelineToJson(`(Pair ${tokenId} "${alice.pkh}")`),
             exprMichelineToJson(`(pair nat address))'`)
         );
-        assert(parseInt(alicePostTransferBalances.int) == parseInt(amount*1_000_000) * 3 - parseInt(amount) * 4 - burnAmount);
+        assert(parseInt(alicePostTransferBalances.int) == parseInt(amount*1_000_000) * 3 - parseInt(amount) * 4 - UnwrapAmount);
+        assert(preBalance - postBalance > UnwrapAmount);
+
     });
 
-    it('Burn tokens with enough tokens and with operator a second time should succeed', async () => {
+    it('Unwrap tokens with enough tokens and with operator a second time should succeed', async () => {
         const storage = await wrapper.getStorage();
         var aliceTransferBalances = await getValueFromBigMap(
             parseInt(storage.ledger),
             exprMichelineToJson(`(Pair ${tokenId} "${alice.pkh}")`),
             exprMichelineToJson(`(pair nat address))'`)
         );
-        assert(parseInt(aliceTransferBalances.int) == parseInt(amount*1_000_000) * 3 - parseInt(amount) * 4 - burnAmount);
+        assert(parseInt(aliceTransferBalances.int) == parseInt(amount*1_000_000) * 3 - parseInt(amount) * 4 - UnwrapAmount);
+
+        const preBalance = await getBalance(alice.pkh);
 
         await wrapper.unwrap({
-            argMichelson: `${burnAmount}`,
+            argMichelson: `(Pair ${UnwrapAmount} None)`,
+            as: alice.pkh,
+        });
+
+        const postBalance = await getBalance(alice.pkh);
+
+        var alicePostTransferBalances = await getValueFromBigMap(
+            parseInt(storage.ledger),
+            exprMichelineToJson(`(Pair ${tokenId} "${alice.pkh}")`),
+            exprMichelineToJson(`(pair nat address))'`)
+        );
+        assert(parseInt(alicePostTransferBalances.int) == parseInt(amount*1_000_000) * 3 - parseInt(amount) * 4 - UnwrapAmount*2);
+        assert(preBalance - postBalance > UnwrapAmount);
+    });
+
+    it('Unwrap tokens with enough tokens for someone else should succeed', async () => {
+        const storage = await wrapper.getStorage();
+        var aliceTransferBalances = await getValueFromBigMap(
+            parseInt(storage.ledger),
+            exprMichelineToJson(`(Pair ${tokenId} "${alice.pkh}")`),
+            exprMichelineToJson(`(pair nat address))'`)
+        );
+        assert(parseInt(aliceTransferBalances.int) == parseInt(amount*1_000_000) * 3 - parseInt(amount) * 4 - UnwrapAmount*2);
+        var aliceBalance = await getBalance(alice.pkh);
+        var bobBalance = await getBalance(bob.pkh);
+
+        await wrapper.unwrap({
+            argMichelson: `(Pair ${UnwrapAmount} (Some "${bob.pkh}"))`,
             as: alice.pkh,
         });
 
@@ -1231,128 +1304,19 @@ describe('Burn', async () => {
             exprMichelineToJson(`(Pair ${tokenId} "${alice.pkh}")`),
             exprMichelineToJson(`(pair nat address))'`)
         );
-        assert(parseInt(alicePostTransferBalances.int) == parseInt(amount*1_000_000) * 3 - parseInt(amount) * 4 - burnAmount*2);
-    });
-});
 
-describe('Pause', async () => {
-    it('Set pause should succeed', async () => {
-        await wrapper.pause({
-            as: alice.pkh,
-        });
-        const storage = await wrapper.getStorage();
-        assert(storage.paused == true);
-    });
+        var bobPostTransferBalance = await getBalance(bob.pkh);
+        var alicePostTransferBalance = await getBalance(alice.pkh);
 
-    it('Minting is not possible when contract is paused should fail', async () => {
-        await expectToThrow(async () => {
-            await wrapper.wrap({
-                arg: {
-                    iowner: alice.pkh,
-                    iamount: amount
-                },
-                as: alice.pkh,
-            });
-        }, errors.CONTRACT_PAUSED);
-    });
+        assert(parseInt(alicePostTransferBalances.int) == parseInt(amount*1_000_000) * 3 - parseInt(amount) * 4 - UnwrapAmount * 3);
+        assert(bobPostTransferBalance - bobBalance == UnwrapAmount);
+        assert(alicePostTransferBalance < aliceBalance);
 
-    it('Update operators is not possible when contract is paused should fail', async () => {
-        await expectToThrow(async () => {
-            await wrapper.update_operators({
-                argMichelson: `{Left (Pair "${alice.pkh}" "${bob.pkh}" ${tokenId})}`,
-                as: alice.pkh,
-            });
-        }, errors.CONTRACT_PAUSED);
-    });
-
-    it('Add permit is not possible when contract is paused should fail', async () => {
-        await expectToThrow(async () => {
-            permit = await mkTransferPermit(
-                alice,
-                bob,
-                wrapper.address,
-                amount,
-                tokenId,
-                alicePermitNb
-            );
-            const argM = `(Pair "${alice.pubk}" (Pair "${permit.sig.prefixSig}" 0x${permit.hash}))`;
-
-            await wrapper.permit({
-                argMichelson: argM,
-                as: bob.pkh,
-            });
-        }, errors.CONTRACT_PAUSED);
-    });
-
-    it('Transfer is not possible when contract is paused should fail', async () => {
-        await expectToThrow(async () => {
-            await wrapper.transfer({
-                arg: {
-                    txs: [[alice.pkh, [[bob.pkh, tokenId, 666]]]],
-                },
-                as: alice.pkh,
-            });
-        }, errors.CONTRACT_PAUSED);
-    });
-
-    it('Set metadata is not possible when contract is paused should fail', async () => {
-        await expectToThrow(async () => {
-            const bytes =
-                '0x05070707070a00000016016a5569553c34c4bfe352ad21740dea4e2faad3da000a00000004f5f466ab070700000a000000209aabe91d035d02ffb550bb9ea6fe19970f6fb41b5e69459a60b1ae401192a2dc';
-            const argM = `(Pair "" ${bytes})`;
-            await wrapper.set_metadata({
-                argMichelson: argM,
-                as: alice.pkh,
-            });
-        }, errors.CONTRACT_PAUSED);
-    });
-
-    it('Set expiry is not possible when contract is paused should fail', async () => {
-        const expiry = 8;
-        permit = await mkTransferPermit(
-            alice,
-            bob,
-            wrapper.address,
-            amount,
-            tokenId,
-            alicePermitNb
-        );
-        const argMExp = `(Pair (Some ${expiry}) (Some 0x${permit.hash}))`;
-
-        await expectToThrow(async () => {
-            await wrapper.set_expiry({
-                argMichelson: argMExp,
-                as: alice.pkh,
-            });
-        }, errors.CONTRACT_PAUSED);
-    });
-
-    it('Burn is not possible when contract is paused should fail', async () => {
-        await expectToThrow(async () => {
-            await wrapper.unwrap({
-                argMichelson: `666`,
-                as: alice.pkh,
-            });
-        }, errors.CONTRACT_PAUSED);
-    });
-
-    it('Transfer ownership when contract is paused should succeed', async () => {
-        let storage = await wrapper.getStorage();
-        assert(storage.owner == alice.pkh);
-        await wrapper.declare_ownership({
-            argMichelson: `"${alice.pkh}"`,
-            as: alice.pkh,
-        });
-        storage = await wrapper.getStorage();
-        assert(storage.owner == alice.pkh);
     });
 });
 
 describe('Transfer ownership', async () => {
     it('Transfer ownership as non owner should fail', async () => {
-        await wrapper.unpause({
-            as: alice.pkh,
-        });
         await expectToThrow(async () => {
             await wrapper.declare_ownership({
                 argMichelson: `"${bob.pkh}"`,

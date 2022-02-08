@@ -7,7 +7,7 @@
       "name": "ISC",
       "details": "ISC License"
     },
-    "homepage": "https://gitlab.com/tezos-paris-hub/tez-wrapper",
+    "homepage": "https://github.com/rarible/xtz-wrapper",
     "interfaces": [
       "TZIP-12",
       "TZIP-16",
